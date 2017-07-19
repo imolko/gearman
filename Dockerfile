@@ -1,61 +1,68 @@
-# Dependencia para compilar con curl.
-FROM buildpack-deps:jessie-curl
+FROM alpine:3.6
 
-MAINTAINER Yohany Flores <yohanyflores@gmail.com>
+ENV GEARMAND_VERSION 1.1.16
+ENV GEARMAND_SHA1 722b42b6d9a68dab24c83c71ff3fa1c2288b9c06
 
-LABEL com.imolko.group=imolko
-LABEL com.imolko.type=base
+RUN addgroup -S gearman && adduser -G gearman -S -D -H -s /bin/false -g "Gearman Server" gearman
 
-# Creamos el usuario gearman
-RUN useradd -b /var/lib/ -c "Gearman Job Server" -m -s /bin/false gearman
+COPY patches/libhashkit-common.h.patch /libhashkit-common.h.patch
+COPY patches/libtest-cmdline.cc.patch /libtest-cmdline.cc.patch
 
-# grab gosu for easy step-down from root
-RUN gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4
-RUN	wget --output-document /usr/local/bin/gosu.asc --quiet "https://github.com/tianon/gosu/releases/download/1.5/gosu-$(dpkg --print-architecture).asc" \
-    && wget --output-document /usr/local/bin/gosu --quiet "https://github.com/tianon/gosu/releases/download/1.5/gosu-$(dpkg --print-architecture)" \
-    && gpg --verify /usr/local/bin/gosu.asc \
-    && rm /usr/local/bin/gosu.asc \
-    && chmod +x /usr/local/bin/gosu
+RUN set -x \
+	&& apk add --no-cache --virtual .build-deps \
+		wget \
+		tar \
+		ca-certificates \
+		file \
+		alpine-sdk \
+		gperf \
+		boost-dev \
+		libevent-dev \
+		util-linux-dev \
+		libressl-dev \
+        mariadb-dev \
+	&& wget -O gearmand.tar.gz "https://github.com/gearman/gearmand/releases/download/$GEARMAND_VERSION/gearmand-$GEARMAND_VERSION.tar.gz" \
+	&& echo "$GEARMAND_SHA1  gearmand.tar.gz" | sha1sum -c - \
+	&& mkdir -p /usr/src/gearmand \
+	&& tar -xzf gearmand.tar.gz -C /usr/src/gearmand --strip-components=1 \
+	&& rm gearmand.tar.gz \
+	&& cd /usr/src/gearmand \
+	&& patch -p1 < /libhashkit-common.h.patch \
+	&& patch -p1 < /libtest-cmdline.cc.patch \
+	&& ./configure \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--with-mysql=yes \
+		--with-postgresql=no \
+		--disable-libpq \
+		--disable-libtokyocabinet \
+		--disable-libdrizzle \
+		--disable-libmemcached \
+		--enable-ssl \
+		--disable-hiredis \
+		--enable-jobserver=no \
+	&& make \
+	&& make install \
+	&& cd / && rm -rf /usr/src/gearmand \
+	&& rm /*.patch \
+	&& runDeps="$( \
+		scanelf --needed --nobanner --recursive /usr/local \
+			| awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
+			| sort -u \
+			| xargs -r apk info --installed \
+			| sort -u \
+	)" \
+	&& apk add --virtual .gearmand-rundeps $runDeps \
+	&& apk del .build-deps \
+	&& /usr/local/sbin/gearmand --version
 
-ENV GEARMAN_VERSION "1.1.16"
-ENV GEARMAN_URL "https://github.com/gearman/gearmand/releases/download/${GEARMAN_VERSION}/gearmand-${GEARMAN_VERSION}.tar.gz"
-ENV BUILD_PACKAGES gcc make g++ libboost-all-dev gperf libevent-dev uuid-dev libmysqlclient-dev libsqlite3-dev libmemcached-dev file libssl-dev
+#COPY gearmand.conf /etc/gearmand.conf
 
-#Configuramos la zona horaria
-RUN echo "America/Caracas" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN ln -s usr/local/bin/docker-entrypoint.sh /entrypoint.sh # backwards compat
+ENTRYPOINT ["docker-entrypoint.sh"]
 
-RUN set -ex \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive \
-    && apt-get install -y --no-install-recommends ${BUILD_PACKAGES} \
-    && curl -L ${GEARMAN_URL} -o gearmand.tar.gz \
-    && mkdir -p /usr/src/gearmand \
-    && tar -zxf gearmand.tar.gz -C /usr/src/gearmand --strip-components=1 \
-    && rm gearmand.tar.gz \
-    && cd /usr/src/gearmand \
-    && ./configure \
-        --prefix=/usr \
-        --sysconfdir=/etc \
-        --localstatedir=/var \
-        --with-postgresql=no \
-        --disable-libpq \
-        --enable-ssl \
-        --enable-jobserver=no \
-        --disable-hiredis \
-    && make \
-    && make install \
-    && cd / \
-    && rm -rf /usr/src/gearmand \
-    && apt-get remove --purge -y --force-yes $BUILD_PACKAGES \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /tmp/* \
-    && rm -rf /var/tmp/*
-
-COPY docker-entrypoint.sh /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
-
-CMD ["--verbose", "NOTICE", "--job-retries", "10", "--log-file", "stderr", "--threads", "16", "--keepalive", "--keepalive-idle", "500", "--keepalive-interval", "60", "--keepalive-count", "60" ]
-
+USER gearman
 EXPOSE 4730
+# CMD ["gearmand"]
+CMD ["--verbose", "DEBUG", "--job-retries", "10", "--log-file", "stderr", "--threads", "16", "--keepalive", "--keepalive-idle", "500", "--keepalive-interval", "60", "--keepalive-count", "60" ]

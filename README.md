@@ -11,9 +11,9 @@ Imagen docker para gearman:
 * Debug enabled:             no
 * Warnings as failure:       no
 * Building with hiredis      no
-* Building with libsqlite3   yes
+* Building with libsqlite3   no
 * Building with libdrizzle   yes
-* Building with libmemcached yes
+* Building with libmemcached not found
 * Building with libpq        no
 * Building with tokyocabinet no
 * Building with libmysql     yes
