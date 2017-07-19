@@ -56,13 +56,10 @@ RUN set -x \
 	&& apk del .build-deps \
 	&& /usr/local/sbin/gearmand --version
 
-#COPY gearmand.conf /etc/gearmand.conf
-
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN ln -s usr/local/bin/docker-entrypoint.sh /entrypoint.sh # backwards compat
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 USER gearman
 EXPOSE 4730
-# CMD ["gearmand"]
 CMD ["--verbose", "DEBUG", "--job-retries", "10", "--log-file", "stderr", "--threads", "16", "--keepalive", "--keepalive-idle", "500", "--keepalive-interval", "60", "--keepalive-count", "60" ]
