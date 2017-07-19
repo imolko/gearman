@@ -20,7 +20,7 @@ RUN set -x \
 		libevent-dev \
 		util-linux-dev \
 		libressl-dev \
-        mariadb-dev \
+		mariadb-dev \
 	&& wget -O gearmand.tar.gz "https://github.com/gearman/gearmand/releases/download/$GEARMAND_VERSION/gearmand-$GEARMAND_VERSION.tar.gz" \
 	&& echo "$GEARMAND_SHA1  gearmand.tar.gz" | sha1sum -c - \
 	&& mkdir -p /usr/src/gearmand \
