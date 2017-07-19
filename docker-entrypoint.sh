@@ -31,7 +31,7 @@ if [ "$1" = 'gearmand' ]; then
 
 	echo "Starting gearman job server with params: $@"
 
-	exec gosu gearman "$@"
+	exec "$@"
 fi
 
 exec "$@"
