@@ -24,3 +24,17 @@ Imagen docker para gearman:
 * VCS checkout:              no
 * sphinx-build:              :
 
+```
+./configure \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--with-mysql=yes \
+		--with-postgresql=no \
+		--disable-libpq \
+		--disable-libtokyocabinet \
+		--disable-libdrizzle \
+		--disable-libmemcached \
+		--enable-ssl \
+		--disable-hiredis \
+		--enable-jobserver=no 
+```
