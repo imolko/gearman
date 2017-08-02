@@ -62,4 +62,4 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 
 USER gearman
 EXPOSE 4730
-CMD ["--verbose", "DEBUG", "--job-retries", "10", "--log-file", "stderr", "--threads", "16", "--keepalive", "--keepalive-idle", "500", "--keepalive-interval", "60", "--keepalive-count", "60" ]
+CMD ["--verbose", "NOTICE", "--job-retries", "10", "--log-file", "stderr", "--threads", "16", "--keepalive", "--keepalive-idle", "500", "--keepalive-interval", "60", "--keepalive-count", "60" ]
